@@ -1,0 +1,31 @@
+{
+  "summary": "MVP inicial da Aptivafit testado end-to-end. Backend (16/16 testes pytest passaram): auth (register/login/me + tokens inválidos/faltantes), onboarding save, plan generate (com dias, exercícios e mensagem coach do Claude Sonnet 4.6 via Emergent LLM key), plan current, exercises library, workouts log + history. LLM Claude retornando mensagens motivacionais reais em pt-BR (verificado no plano do usuário demo). Frontend Expo web preview validado nos fluxos principais: welcome → /onboarding/gender navega ok, barra de progresso X/17 correta, seleção de opção habilita botão PRÓXIMO (design pattern: botão fica invisível enquanto nenhuma opção é selecionada — funcionando conforme esperado). Login com demo@aptivafit.app redireciona para /plan onde aparecem os 4 dias em abas horizontais, coach message do Claude, 50min / 480 kcal / 6 ex., grupos musculares e lista de exercícios. INICIAR TREINO abre /workout/active?day=1 com timer live (00:03), KCAL, KG TOTAL, tabela de sets editável (10 reps × 23kg pré-preenchidos), botão FINALIZAR TREINO. Paywall mostra badge 72% DESCONTO, 3 planos (1M / 12M / 6M) com 12 Meses selecionado por default, CONTINUAR e Restaurar. Sem erros de React Native red screen nem console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "onboarding/*", "issues": ["Botão PRÓXIMO fica invisível (não apenas desabilitado) enquanto nenhuma opção é selecionada. Comportamento funcional, mas para acessibilidade seria melhor manter visível com opacity reduzida (ex: 0.4) + disabled=true para dar affordance visual do próximo passo."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Opcional) Ajustar visual do botão PRÓXIMO nas telas de onboarding para ficar visível mas desabilitado (opacity 0.4) em vez de invisível, melhora affordance mobile.",
+    "(Opcional) Cobertura de testID: já há 79 declarações no /app/frontend/app — ótimo — mas adicionar testID nos itens de tab bar (`tab-plan`, `tab-workouts`, `tab-progress`, `tab-exercises`, `tab-profile`) facilitaria testes futuros."
+  ],
+  "critical_code_review_comments": [
+    "server.py exclui corretamente `_id` do Mongo em todos os endpoints e sanitiza `password_hash` do usuário retornado.",
+    "JWT_SECRET default 'change-me' é substituído no .env por chave forte — ok para MVP.",
+    "Emergent LLM key configurada e funcionando com anthropic/claude-sonnet-4-6.",
+    "Fallback resiliente na LLM: se falhar, retorna string motivacional padrão em vez de quebrar /api/plan/generate.",
+    "Frontend usa EXPO_PUBLIC_BACKEND_URL corretamente (prefixo EXPO_PUBLIC_ obrigatório para Expo)."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py", "/app/backend/tests/__init__.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% dos fluxos críticos testados"},
+  "seed_data_creation": "Usuário demo@aptivafit.app já registrado; onboarding + plano gerados durante os testes. Vários usuários TEST_*/noob_*@aptivafit.app criados para testes de edge cases.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend 100% verde. Frontend Expo web usa react-native-web — seletores por texto funcionam melhor que testID em alguns componentes (Text renderiza como div, não input). Muitos elementos têm testID (79 no total) — usar `[data-testid=\"...\"]` sempre que possível. Fluxo autenticado: POST /api/auth/login com demo@aptivafit.app / Aptivafit@2026 → guardar `token` → Header `Authorization: Bearer <token>`. Onboarding precisa existir antes de /api/plan/generate (400 caso contrário). Tab bar do (tabs) só é visível em rotas dentro de (tabs); em /workout/active a barra não aparece (modal fullscreen).",
+  "rca_of_issue": "N/A — não foram encontrados bugs bloqueantes."
+}

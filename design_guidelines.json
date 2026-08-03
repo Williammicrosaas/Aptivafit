@@ -1,0 +1,167 @@
+{
+  "app_name": "Aptivafit",
+  "personality": "7 Dark-First Utility DARK with 6 Glass / Luxe DARK surfaces",
+  "personality_one_liner": "A high-performance, cinematic command center that motivates through tactical precision and electric energy.",
+  "color": {
+    "surface": "#090C12",
+    "onSurface": "#F8FAFC",
+    "surfaceSecondary": "#121721",
+    "onSurfaceSecondary": "#CBD5E1",
+    "surfaceTertiary": "#1A2230",
+    "onSurfaceTertiary": "#94A3B8",
+    "surfaceInverse": "#F8FAFC",
+    "onSurfaceInverse": "#090C12",
+    "brand": "#CCFF00",
+    "brandPrimary": "#CCFF00",
+    "onBrandPrimary": "#090C12",
+    "brandSecondary": "#8AB300",
+    "onBrandSecondary": "#090C12",
+    "brandTertiary": "#263300",
+    "onBrandTertiary": "#CCFF00",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#000000",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "border": "#1A2230",
+    "borderStrong": "#334155",
+    "divider": "#1A2230"
+  },
+  "typography": {
+    "displayFontFamily": "Bebas Neue",
+    "textFontFamily": "Manrope",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Dense but legible for data, generous for hero elements. Thumb-zone compliance for primary actions.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Bottom tab bar (translucent dark navy over scrolling data)",
+      "Sticky headers on My Plan and Workouts list",
+      "Featured workout cards overlaying photography"
+    ],
+    "dont's": [
+      "Active live workout tracker numbers (keep opaque for legibility)",
+      "Data-heavy exercise grids",
+      "Form inputs in the onboarding flow"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Onboarding",
+      "purpose": "Personalize the user's fitness journey through interactive goal selection and a body muscle map.",
+      "states": {
+        "loading": "Rotating motivational text over dark background with electric green accent spinner.",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Sticky progress bar at top. Interactive multi-step form chunked by goals. Includes a full-screen interactive muscle map (front/back views) where selected muscle groups highlight in brandPrimary. Primary CTA is sticky at the bottom, protected by safe-area padding."
+    },
+    {
+      "name": "Paywall",
+      "purpose": "Convert users via a premium, cinematic subscription presentation.",
+      "states": {
+        "loading": "Skeleton of 3 subscription cards.",
+        "empty": "N/A",
+        "error": "Failed to load pricing. Retry button."
+      },
+      "layout": "Full-bleed darkened background photo with vertical gradient scrim (transparent to surface). 3 subscription tier cards in surfaceSecondary. 'Most Popular' tier gets a brandPrimary borderStrong and glow. Sticky bottom Continue button. Exit-intent modal triggered on top-left close tap."
+    },
+    {
+      "name": "My Plan",
+      "purpose": "Show the daily workout schedule and allow exercise reordering.",
+      "states": {
+        "loading": "Centered spinner.",
+        "empty": "Illustration of a gym bag. Text: 'Rest day or ready to crush it?' CTA: 'Find a Workout'.",
+        "error": "Unable to load today's plan. Retry button."
+      },
+      "layout": "Horizontal scrollable day tabs (S/M/T/W/T/F/S). List of exercise cards using surfaceSecondary. Each card shows muscle group icon, sets, reps, and weight. Include a drag-handle on the right side. Floating Add Exercise button (glassmorphic brandTertiary over surface)."
+    },
+    {
+      "name": "Active Workout",
+      "purpose": "Real-time, live tracker command center during the workout.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Massive Bebas Neue live timer positioned centrally at the top. Stat cards below (Calories, Volume). Vertical list of sets with large hit-target checkboxes for completion. Rest timer overlay bottom sheet triggered after checking a set. Micro-celebration PR badges pop up upon new personal records."
+    },
+    {
+      "name": "Progress",
+      "purpose": "Visualize user's fitness journey and consistency.",
+      "states": {
+        "loading": "Centered spinner.",
+        "empty": "Illustration of a blank chart. 'Complete a workout to see your stats grow.'",
+        "error": "Could not fetch data. Retry button."
+      },
+      "layout": "Dashboard grid layout. Includes a muscle distribution radar chart, weekly streak calendar (surfaceTertiary active state), and a row of PR badges. Integration statuses (Apple Health/Strava) shown as toggleable cards."
+    }
+  ],
+  "images": {
+    "hero_gym": {
+      "url": "https://images.unsplash.com/photo-1550345332-09e3ac987658?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwzfHxneW0lMjB3b3Jrb3V0JTIwbGlmdGluZyUyMHdlaWdodHMlMjBwcmVtaXVtJTIwZGFya3xlbnwwfHx8fDE3ODMxMTk5ODZ8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxneW0lMjB3b3Jrb3V0JTIwbGlmdGluZyUyMHdlaWdodHMlMjBwcmVtaXVtJTIwZGFya3xlbnwwfHx8fDE3ODMxMTk5ODZ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Premium dark gym atmosphere with person lifting"
+    },
+    "onboarding_muscle_map": {
+      "url": "https://images.unsplash.com/photo-1782356863359-ecb02cee2717?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwxfHxodW1hbiUyMGJvZHklMjBtdXNjbGUlMjBpbGx1c3RyYXRpb24lMjBhYnN0cmFjdHxlbnwwfHx8fDE3ODU3NzE1NTR8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1782356863359-ecb02cee2717?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwxfHxodW1hbiUyMGJvZHklMjBtdXNjbGUlMjBpbGx1c3RyYXRpb24lMjBhYnN0cmFjdHxlbnwwfHx8fDE3ODU3NzE1NTR8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "3D human muscle anatomy diagram"
+    }
+  },
+  "events": {
+    "timer_start_pause": "impactMedium",
+    "set_complete_check": "impactLight",
+    "workout_finish": "notificationSuccess",
+    "tab_switch": "selection",
+    "exercise_reorder": "impactHeavy"
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Dark-First Utility guidelines. Utilize the deep navy/graphite backgrounds with intense Neon Green (#CCFF00) accents for all progress rings, active states, and primary CTAs.",
+    "Bebas Neue MUST be used exclusively for numbers, timers, large headers, and live metrics. Use Manrope for standard body copy, labels, and secondary reading elements.",
+    "Include a vertical gradient scrim overlay (transparent to #090C12) over any photo backgrounds (like Paywall or Workout summaries) to guarantee text legibility. Ensure the text sits in the darkest bottom 30-40%.",
+    "The Active Workout timer should dominate the screen visually. Ensure sets are presented with massive, easy-to-hit touch targets (44x44pt minimum) with haptic feedback on completion.",
+    "Wire haptics specifically for checking off a set and starting/stopping the timer as defined in the 'events' map.",
+    "Research finding: Based on Mobbin analysis, premium fitness apps in 2026 minimize UI noise during active states. Limit form-factor distractions. Stick to absolute necessity on the Active Workout tracking screen."
+  ]
+}
