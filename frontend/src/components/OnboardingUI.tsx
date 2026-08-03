@@ -147,7 +147,7 @@ export function PrimaryButton({
       style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled, style]}
       testID={testID}
     >
-      <Text style={styles.primaryBtnText}>{title}</Text>
+      <Text style={[styles.primaryBtnText, disabled && styles.primaryBtnTextDisabled]}>{title}</Text>
     </Pressable>
   );
 }
@@ -316,6 +316,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: {
     backgroundColor: Colors.surfaceTertiary,
+    opacity: 0.7,
   },
   primaryBtnText: {
     color: Colors.onBrand,
@@ -323,6 +324,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  primaryBtnTextDisabled: {
+    color: Colors.onSurfaceTertiary,
   },
   secondaryBtn: {
     paddingVertical: 16,
