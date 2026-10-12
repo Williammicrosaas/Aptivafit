@@ -81,6 +81,10 @@ class CoachMessageIn(BaseModel):
     text: str
 
 
+class QuickWorkoutIn(BaseModel):
+    minutes: int = 20
+
+
 # ============== HELPERS ==============
 def now_utc():
     return datetime.now(timezone.utc)
@@ -591,6 +595,118 @@ async def coach_chat(data: CoachMessageIn, user=Depends(get_current_user)):
 async def coach_clear(user=Depends(get_current_user)):
     r = await db.coach_messages.delete_many({"user_id": user["user_id"]})
     return {"deleted": r.deleted_count}
+
+
+# ============== QUICK WORKOUT (Coach IA) ==============
+def _quick_workout_from_profile(minutes: int, ob: Dict[str, Any]) -> Dict[str, Any]:
+    """Fallback deterministic quick workout generator."""
+    # pick muscle groups by elapsed days (simple rotation)
+    focus_opts = [
+        ["Peito", "Tríceps"],
+        ["Costas", "Bíceps"],
+        ["Pernas", "Glúteos"],
+        ["Ombros", "Abdômen"],
+    ]
+    # Rotate by day-of-year
+    idx = datetime.now(timezone.utc).timetuple().tm_yday % len(focus_opts)
+    focus = focus_opts[idx]
+
+    # Honor injuries — simple removal
+    injuries = [i.lower() for i in (ob.get("injuries") or [])]
+    if any("ombro" in i for i in injuries):
+        focus = ["Pernas", "Glúteos"] if focus_opts[idx] != focus_opts[2] else ["Costas", "Bíceps"]
+    if any("joelho" in i for i in injuries) and "Pernas" in focus:
+        focus = ["Costas", "Bíceps"]
+
+    exercise_count = max(2, min(5, minutes // 5))
+    level = ob.get("experience") or "iniciante"
+    location = ob.get("location") or "academia_grande"
+    weight = ob.get("weight_kg") or 70
+
+    exs = _pick_exercises(focus, level, location, exercise_count)
+    exercises = []
+    for e in exs:
+        load = _suggest_load(e["name"], weight, level)
+        # Shorter sets for time-crunched workouts
+        sets = max(2, min(3, load["sets"] - 1))
+        exercises.append(
+            {
+                "id": f"qex_{uuid.uuid4().hex[:8]}",
+                "name": e["name"],
+                "group": e["group"],
+                "equipment": e["equip"],
+                "sets": sets,
+                "reps": load["reps"],
+                "weight_kg": load["weight_kg"],
+            }
+        )
+    return {
+        "name": f"Treino Express · {' + '.join(focus)}",
+        "duration_min": minutes,
+        "focus": focus,
+        "exercises": exercises,
+    }
+
+
+@api_router.post("/coach/quick-workout")
+async def quick_workout(data: QuickWorkoutIn, user=Depends(get_current_user)):
+    minutes = max(5, min(45, data.minutes))
+    ob = await db.onboarding.find_one({"user_id": user["user_id"]}, {"_id": 0}) or {}
+
+    # Build deterministic base workout from profile — reliable foundation
+    workout = _quick_workout_from_profile(minutes, ob)
+
+    # Try to let Gemini pick a short motivational tagline + rename
+    coach_note = None
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        system = (
+            "Você é um personal trainer motivacional. Responda em 1 frase curta em português brasileiro, "
+            "sem Markdown, sem asteriscos, sem #. Deve ser um incentivo direto para um treino rápido."
+        )
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"quick_{user['user_id']}_{int(now_utc().timestamp())}",
+            system_message=system,
+        ).with_model("gemini", "gemini-3.1-pro-preview")
+        focus_str = ", ".join(workout["focus"])
+        msg = UserMessage(
+            text=(
+                f"Vou treinar {minutes} minutos focando em {focus_str}. "
+                f"Mande 1 frase curta de incentivo (máx 15 palavras)."
+            )
+        )
+        coach_note = (await chat.send_message(msg)).strip()
+    except Exception as ex:
+        logger.warning(f"Quick workout LLM note failed: {ex}")
+        coach_note = "Vamos nessa! Treino curto, foco total."
+
+    workout["coach_note"] = coach_note
+
+    # Persist as current quick workout (overwrite previous)
+    doc = {
+        "user_id": user["user_id"],
+        **workout,
+        "created_at": now_utc(),
+    }
+    await db.quick_workouts.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": doc},
+        upsert=True,
+    )
+
+    workout["created_at"] = doc["created_at"].isoformat()
+    return workout
+
+
+@api_router.get("/coach/quick-workout")
+async def get_quick_workout(user=Depends(get_current_user)):
+    w = await db.quick_workouts.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if not w:
+        raise HTTPException(status_code=404, detail="Nenhum treino rápido ativo")
+    if isinstance(w.get("created_at"), datetime):
+        w["created_at"] = w["created_at"].isoformat()
+    return w
 
 
 @api_router.get("/")
