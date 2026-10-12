@@ -219,3 +219,58 @@ class TestWorkouts:
     def test_workouts_history_no_auth_returns_401(self, api):
         r = api.get(f"{BASE_URL}/api/workouts/history", timeout=15)
         assert r.status_code == 401
+
+
+# -------- Coach IA (Gemini 3.1 Pro via Emergent LLM Key) --------
+class TestCoachAI:
+    def test_coach_chat_no_auth_returns_401(self, api):
+        r = api.post(f"{BASE_URL}/api/coach/chat", json={"text": "oi"}, timeout=15)
+        assert r.status_code == 401
+
+    def test_coach_history_no_auth_returns_401(self, api):
+        r = api.get(f"{BASE_URL}/api/coach/history", timeout=15)
+        assert r.status_code == 401
+
+    def test_coach_clear_before_tests(self, api, auth_headers):
+        # Clean slate so persistence assertions below are deterministic
+        r = api.delete(f"{BASE_URL}/api/coach/history", headers=auth_headers, timeout=15)
+        assert r.status_code == 200
+        assert "deleted" in r.json()
+
+    def test_coach_chat_returns_portuguese_reply(self, api, auth_headers):
+        r = api.post(
+            f"{BASE_URL}/api/coach/chat",
+            json={"text": "Como melhoro meu supino?"},
+            headers=auth_headers,
+            timeout=90,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert "reply" in body and isinstance(body["reply"], str)
+        reply = body["reply"].strip()
+        assert len(reply) > 10, f"reply too short: {reply!r}"
+        # Portuguese heuristic: contain at least one typical PT token
+        pt_tokens = ["supino", "você", "é", "é ", "ó", "ã", "ç", "para", "exerc", "treino", "ombro", "carga", "séri", "peito"]
+        lower = reply.lower()
+        assert any(tok in lower for tok in pt_tokens), f"reply not in Portuguese: {reply!r}"
+
+    def test_coach_history_persisted(self, api, auth_headers):
+        r = api.get(f"{BASE_URL}/api/coach/history", headers=auth_headers, timeout=15)
+        assert r.status_code == 200
+        items = r.json()["items"]
+        roles = [m["role"] for m in items]
+        assert "user" in roles and "assistant" in roles, f"roles={roles}"
+        assert all("_id" not in m for m in items)
+
+    def test_coach_clear_history_resets(self, api, auth_headers):
+        r = api.delete(f"{BASE_URL}/api/coach/history", headers=auth_headers, timeout=15)
+        assert r.status_code == 200
+        assert r.json()["deleted"] >= 1
+        g = api.get(f"{BASE_URL}/api/coach/history", headers=auth_headers, timeout=15)
+        assert g.status_code == 200
+        assert g.json()["items"] == []
+
+    def test_coach_chat_empty_text_returns_400(self, api, auth_headers):
+        r = api.post(f"{BASE_URL}/api/coach/chat", json={"text": "   "}, headers=auth_headers, timeout=15)
+        assert r.status_code == 400
+

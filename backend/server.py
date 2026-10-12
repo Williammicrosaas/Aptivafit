@@ -77,6 +77,10 @@ class WorkoutLog(BaseModel):
     notes: Optional[str] = None
 
 
+class CoachMessageIn(BaseModel):
+    text: str
+
+
 # ============== HELPERS ==============
 def now_utc():
     return datetime.now(timezone.utc)
@@ -416,7 +420,7 @@ async def generate_plan(user=Depends(get_current_user)):
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"plan_{user['user_id']}",
-            system_message="Você é um personal trainer motivacional. Responda em português brasileiro, em 1-2 frases curtas.",
+            system_message="Você é um personal trainer motivacional. Responda em português brasileiro, em 1-2 frases curtas. NÃO use Markdown (nada de ** ou # ou *), apenas texto puro.",
         ).with_model("anthropic", "claude-sonnet-4-6")
         um = UserMessage(
             text=f"Crie uma mensagem motivacional curta para {user.get('name','atleta')} que quer {ob.get('goal','ficar mais forte')} treinando {days}x por semana. Máximo 2 frases."
@@ -483,6 +487,110 @@ async def workout_history(user=Depends(get_current_user)):
         if isinstance(it.get("completed_at"), datetime):
             it["completed_at"] = it["completed_at"].isoformat()
     return {"items": items, "total": len(items)}
+
+
+# ============== COACH AI CHAT (Gemini 3.1 Pro) ==============
+async def _build_coach_context(user_id: str) -> str:
+    """Build system prompt with user profile + plan context."""
+    ob = await db.onboarding.find_one({"user_id": user_id}, {"_id": 0}) or {}
+    plan = await db.plans.find_one({"user_id": user_id}, {"_id": 0}) or {}
+    hist_count = await db.workouts.count_documents({"user_id": user_id})
+
+    parts = [
+        "Você é o Coach IA da Aptivafit — um personal trainer virtual amigável, motivacional e técnico.",
+        "Responda SEMPRE em português brasileiro. Seja direto, positivo e evite respostas longas demais.",
+        "IMPORTANTE: NÃO use Markdown. Nada de ** para negrito, # para títulos, ou * para listas. Use apenas texto puro, emojis são OK.",
+        "Você conhece o perfil do usuário e o plano de treino dele. Use isso para dar respostas personalizadas.",
+        "Se perguntarem sobre lesões graves, dor persistente ou nutrição médica, oriente a procurar um profissional.",
+        "",
+        "PERFIL DO USUÁRIO:",
+    ]
+    if ob:
+        parts.append(f"- Objetivo: {ob.get('goal', 'não informado')}")
+        parts.append(f"- Nível: {ob.get('experience', 'não informado')}")
+        parts.append(f"- Local de treino: {ob.get('location', 'não informado')}")
+        parts.append(f"- Dias por semana: {ob.get('days_per_week', 3)}")
+        parts.append(f"- Foco muscular: {', '.join(ob.get('muscle_focus', []) or ['corpo inteiro'])}")
+        parts.append(f"- Idade: {ob.get('age', '?')} · Altura: {ob.get('height_cm', '?')}cm · Peso: {ob.get('weight_kg', '?')}kg")
+        if ob.get("injuries"):
+            parts.append(f"- Lesões/dores: {', '.join(ob['injuries'])}")
+    if plan.get("days"):
+        parts.append(f"\nPLANO ATUAL ({len(plan['days'])} dias):")
+        for d in plan["days"]:
+            parts.append(f"- Dia {d['day']} ({d.get('label','')}): {len(d.get('exercises', []))} exercícios")
+    parts.append(f"\nHISTÓRICO: {hist_count} treinos concluídos.")
+    return "\n".join(parts)
+
+
+@api_router.get("/coach/history")
+async def coach_history(user=Depends(get_current_user)):
+    items = await db.coach_messages.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", 1).to_list(200)
+    for it in items:
+        if isinstance(it.get("created_at"), datetime):
+            it["created_at"] = it["created_at"].isoformat()
+    return {"items": items}
+
+
+@api_router.post("/coach/chat")
+async def coach_chat(data: CoachMessageIn, user=Depends(get_current_user)):
+    text = (data.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+
+    user_msg = {
+        "user_id": user["user_id"],
+        "role": "user",
+        "text": text,
+        "created_at": now_utc(),
+    }
+    await db.coach_messages.insert_one(user_msg)
+
+    # Load prior history for multi-turn context
+    prior = await db.coach_messages.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", 1).to_list(40)
+
+    reply_text = ""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        system_msg = await _build_coach_context(user["user_id"])
+        # Include recent conversation history (last 6 exchanges) in system prompt
+        if len(prior) > 1:  # more than just the current user turn
+            hist_lines = ["\n\nHISTÓRICO RECENTE DA CONVERSA:"]
+            for m in prior[-13:-1]:  # last 12 messages excluding current
+                who = "Usuário" if m["role"] == "user" else "Coach"
+                hist_lines.append(f"{who}: {m['text'][:300]}")
+            system_msg = system_msg + "\n".join(hist_lines)
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"coach_{user['user_id']}_{int(now_utc().timestamp())}",
+            system_message=system_msg,
+        ).with_model("gemini", "gemini-3.1-pro-preview")
+        reply_text = await chat.send_message(UserMessage(text=text))
+    except Exception as ex:
+        logger.warning(f"Coach LLM error: {ex}")
+        reply_text = "Desculpe, estou com dificuldade para responder agora. Tente novamente em instantes."
+
+    assistant_msg = {
+        "user_id": user["user_id"],
+        "role": "assistant",
+        "text": reply_text,
+        "created_at": now_utc(),
+    }
+    await db.coach_messages.insert_one(assistant_msg)
+    return {
+        "reply": reply_text,
+        "created_at": assistant_msg["created_at"].isoformat(),
+    }
+
+
+@api_router.delete("/coach/history")
+async def coach_clear(user=Depends(get_current_user)):
+    r = await db.coach_messages.delete_many({"user_id": user["user_id"]})
+    return {"deleted": r.deleted_count}
 
 
 @api_router.get("/")

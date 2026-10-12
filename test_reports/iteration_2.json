@@ -1,0 +1,37 @@
+{
+  "summary": "Iteração 2 (SDK 57 upgrade + Coach IA) testada end-to-end. Backend: 23/23 pytest passam, incluindo 7 novos testes do Coach IA (401 sem token, chat retorna reply em pt-BR via Gemini 3.1 Pro, histórico persiste user+assistant, DELETE limpa e retorna count, texto vazio = 400). Regressão OK: auth/register, auth/login, auth/me, auth/logout, onboarding/save, plan/generate (com coach_message do Claude), plan/current, exercises, workouts/log, workouts/history. Frontend Expo SDK 57: bundler em :3000 responde 200, nenhum uso de 'expo-av', 'newArchEnabled' ou 'edgeToEdgeEnabled'. package.json: expo ^57.0.0, react 19.2.3, react-native 0.86.3, expo-router ~57.0.25. Welcome screen renderiza 'TREINE O PLANO FEITO PARA VOCÊ' + botão 'COMEÇAR'. Fluxo autenticado: login demo@aptivafit.app → /plan mostra 4 dias (DIA 1 PEITO+TRÍCEPS…DIA 4 PERNAS+GLÚTEOS), coach_message LLM, 50min/480kcal/6ex, FAB verde-brand (testID='coach-fab') no canto inferior direito. Tap FAB → /coach. Welcome state 'Oi, Demo!' + 4 chips de sugestão. Tap chip 'Como melhoro meu supino?' → bolha usuário aparece instantânea, indicador typing (…), e em ~10s a bolha IA chega em pt-BR com contexto do perfil (menciona 2 treinos concluídos, DIA 3 Ombros+Abdômen). Testados testID: coach-screen, coach-fab, coach-back, coach-clear, coach-input, coach-send-btn, coach-suggest-* (todos presentes). Envio manual via input + botão também funciona. Nenhuma red screen, nenhum erro de console/pageerror.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/coach e /plan (coach_message)", "issues": ["Respostas da LLM contêm Markdown (ex: '**Dia 3: Ombros e Abdômen**', '**Vamos lá, Demo!**') mas o <Text> do React Native não parseia Markdown — asteriscos aparecem crus no bubble/banner. Sugestão: ou adicionar um render de Markdown leve (react-native-markdown-display) ou instruir o system prompt do Gemini/Claude a NÃO usar Markdown (apenas texto puro)."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Opcional / cosmético) Fazer parsing de Markdown ou pedir no system prompt (coach + plan motivacional) 'não use **, nem _, nem markdown — apenas texto puro' para evitar asteriscos crus nas respostas da LLM.",
+    "Nenhum bloqueador: SDK 57 upgrade e Coach IA estão prontos para o usuário testar no Expo Go do iPhone (SDK 57)."
+  ],
+  "critical_code_review_comments": [
+    "app.json corretamente SEM 'newArchEnabled' e 'edgeToEdgeEnabled' (removidos no SDK 55/57).",
+    "package.json alinhado com SDK 57: expo ^57.0.0, react 19.2.3, react-native 0.86.3, @expo/metro-runtime ~57.0.16, expo-router ~57.0.25 — nenhuma dep deprecada (expo-av, expo-barcode-scanner, expo-background-fetch) presente.",
+    "Backend /api/coach/* bem estruturado: build_coach_context injeta perfil + plano + contagem de treinos no system message; histórico recente (últimas 12 msgs) incluído para multi-turn; fallback resiliente se LLM falhar.",
+    "server.py exclui _id em todos os finds de coach_messages, workouts, plans, users, onboarding.",
+    "Frontend coach.tsx usa KeyboardAvoidingView, SafeAreaView(edges), testID em todos os interativos, ScrollView.scrollToEnd ao chegar nova msg, Pressable disabled quando busy. onSubmitEditing + Alert cross-platform (window.confirm no web).",
+    "FAB em /plan tem shadow correta (elevation 8 Android, shadowColor+Opacity iOS) e position absolute right/bottom respeitando a tab bar."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (adicionada classe TestCoachAI com 7 testes)"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% dos fluxos críticos (SDK 57 bundler, welcome, login, /plan + FAB, /coach + chat IA)"},
+  "seed_data_creation": "Usuário demo@aptivafit.app já existia; onboarding/plano reaproveitados. coach_messages do demo foram limpas e repopuladas durante os testes (histórico final tem msgs de teste — opcional limpar antes do próximo ciclo).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend 100% verde (23/23). SDK 57 upgrade OK — bundler :3000 serve HTTP 200 no preview. Coach IA (Gemini 3.1 Pro via Emergent LLM Key) funcionando end-to-end: resposta em ~8-12s, pt-BR, com contexto do perfil/plano/histórico. testIDs do coach: coach-fab (em /plan), coach-screen, coach-back, coach-clear, coach-input, coach-send-btn, coach-suggest-<prefixo>. Para testar frontend, usar page.set_viewport_size(390x844), ir em /auth/login, preencher 2 inputs + clicar texto 'ENTRAR', depois navegar para /plan ou /coach. Único ponto cosmético aberto: Markdown cru nas respostas da LLM.",
+  "rca_of_issue": "N/A — nenhum bug bloqueante encontrado. SDK 57 upgrade válido, Coach IA operacional."
+}

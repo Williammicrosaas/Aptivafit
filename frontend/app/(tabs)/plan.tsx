@@ -154,6 +154,14 @@ export default function PlanTab() {
           <Text style={styles.startBtnText}>INICIAR TREINO</Text>
         </Pressable>
       </SafeAreaView>
+
+      <Pressable
+        style={styles.fab}
+        onPress={() => router.push("/coach")}
+        testID="coach-fab"
+      >
+        <Ionicons name="sparkles" size={20} color={Colors.onBrand} />
+      </Pressable>
     </View>
   );
 }
@@ -227,4 +235,17 @@ const styles = StyleSheet.create({
   emptyTitle: { color: Colors.onSurface, fontFamily: Fonts.bold, fontSize: 18, textAlign: "center" },
   btn: { paddingHorizontal: Spacing.xl, paddingVertical: 14, backgroundColor: Colors.brand, borderRadius: Radius.pill },
   btnText: { color: Colors.onBrand, fontFamily: Fonts.extrabold, fontSize: 14, letterSpacing: 1 },
+  fab: {
+    position: "absolute",
+    right: Spacing.lg,
+    bottom: 110,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.brand,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: Colors.brand,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
 });
